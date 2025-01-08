@@ -1,0 +1,43 @@
+name: Deploy to ECS
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: Repo
+        required: true
+        type: choice
+        options:
+          - brainwave_builders
+          - clinical_catalysts
+          - cortex_coders
+          - vital_visionaries
+
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Deploy {0} ', inputs.repo) || '' }}   
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.event.inputs.repo }} 
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:  
+          repository: chisquarelabs/${{ github.event.inputs.repo }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID  }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2         
+       
+      - name: Update ECS Service, Build and Push Docker Image
+        run: ./deployment.sh
+
+      - name: Cleaning workspace after job
+        if: always()
+        run: |
+           rm -rf $GITHUB_WORKSPACE/${{ github.event.inputs.repo }} 
+
+
